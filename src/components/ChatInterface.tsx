@@ -130,7 +130,7 @@ const ChatInterface = ({ language, suggestedPrompts, selectedPersona }: ChatInte
 
     try {
       console.log("Sending request:", { prompt: input, lang: language });
-      const res = await axios.post("http://localhost:8000/process_prompt", {
+      const res = await axios.post("https://backend-basha-ai.onrender.com/process_prompt", {
         prompt: input,
         lang: language,
       }, {
