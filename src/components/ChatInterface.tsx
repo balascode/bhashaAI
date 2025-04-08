@@ -1,6 +1,6 @@
-import { useState, useContext, useEffect } from "react";
-import { Box, TextField, IconButton, Button, Paper, Typography } from "@mui/material";
-import { Mic, Send, Lightbulb } from "@mui/icons-material";
+import { useState, useContext, useEffect, useRef } from "react";
+import { Box, TextField, IconButton, Button, Paper, Typography, useMediaQuery, useTheme, CircularProgress } from "@mui/material";
+import { Mic, Send, Lightbulb, KeyboardArrowDown } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeContext } from "../contexts/ThemeContext";
 import axios from "axios";
@@ -53,7 +53,7 @@ const greetings: Record<LanguageCode, Record<Persona, string>> = {
   },
 };
 
-// Dummy responses translated into Telugu
+// Dummy responses translated into different languages
 const dummyResponses: Record<LanguageCode, string[]> = {
   en: [
     "I understand your question. Let me think about that...",
@@ -85,11 +85,20 @@ const dummyResponses: Record<LanguageCode, string[]> = {
   ],
   bn: [
     "আমি আপনার প্রশ্নটি বুঝতে পেরেছি। আমাকে একটু ভাবতে দিন...",
-    "এটি একটি আকর্ষণীয় বিষয়। আমার জ্ঞানের ভিত্তিতে আমি পরামর্শ দিব...",
+    "এটি একটি আকর্ষণীয় বিষয়। আমার জ্ঞানের ভিত্তিতে আমি পরামর্শ দিব...",
     "আমি আপনাকে সাহায্য করতে পারি। এখানে আপনার জানা উচিত কিছু...",
     "মহান প্রশ্ন! উত্তরটি বিভিন্ন বিবেচনার সঙ্গে জড়িত...",
-    "আমি আপনার অনুরোধটি বিশ্লেষণ করেছি এবং এখানে আমার প্রতিক্রिया...",
+    "আমি আপনার অনুরোধটি বিশ্লেষণ করেছি এবং এখানে আমার প্রতিক্রিয়া...",
   ],
+};
+
+// Button labels in different languages
+const buttonLabels: Record<LanguageCode, { send: string; suggestions: string; listening: string; sending: string }> = {
+  en: { send: "Send", suggestions: "Suggestions", listening: "Listening...", sending: "Sending..." },
+  hi: { send: "भेजें", suggestions: "सुझाव", listening: "सुन रहा हूँ...", sending: "भेज रहा हूँ..." },
+  ta: { send: "அனுப்பு", suggestions: "பரிந்துரைகள்", listening: "கேட்கிறேன்...", sending: "அனுப்புகிறது..." },
+  te: { send: "పంపండి", suggestions: "సూచనలు", listening: "వింటున్నాను...", sending: "పంపిణీ చేస్తోంది..." },
+  bn: { send: "পাঠান", suggestions: "পরামর্শ", listening: "শুনছি...", sending: "পাঠাচ্ছে..." },
 };
 
 interface ChatInterfaceProps {
@@ -104,7 +113,45 @@ const ChatInterface = ({ language, suggestedPrompts, selectedPersona }: ChatInte
   const [isListening, setIsListening] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
   const { mode } = useContext(ThemeContext);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+
+  // Scroll to bottom on new messages
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setHasNewMessages(false);
+  };
+
+  // Check if chat is scrolled to bottom
+  const handleScroll = () => {
+    if (chatContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+      
+      if (isAtBottom) {
+        setHasNewMessages(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+      
+      if (!isAtBottom && messages.length > 0) {
+        setHasNewMessages(true);
+      } else {
+        scrollToBottom();
+      }
+    }
+  }, [messages]);
 
   // Display greeting when persona changes
   useEffect(() => {
@@ -116,8 +163,24 @@ const ChatInterface = ({ language, suggestedPrompts, selectedPersona }: ChatInte
     }
   }, [selectedPersona, language]);
 
+  // Setup scrolling event listener
+  useEffect(() => {
+    const chatContainer = chatContainerRef.current;
+    if (chatContainer) {
+      chatContainer.addEventListener('scroll', handleScroll);
+      return () => {
+        chatContainer.removeEventListener('scroll', handleScroll);
+      };
+    }
+  }, []);
+
   const handleVoice = () => {
+    setIsListening(!isListening);
     console.log("Voice input triggered");
+    // Add voice recognition code here
+    setTimeout(() => {
+      setIsListening(false);
+    }, 3000);
   };
 
   const handleSend = async () => {
@@ -169,19 +232,42 @@ const ChatInterface = ({ language, suggestedPrompts, selectedPersona }: ChatInte
     }, 1000);
   };
 
+  const getPlaceholderText = () => {
+    const placeholders: Record<LanguageCode, string> = {
+      en: "Type your message...",
+      hi: "अपना संदेश लिखें...",
+      ta: "உங்கள் செய்தியை உள்ளிடவும்...",
+      te: "మీ సందేశాన్ని టైప్ చేయండి...",
+      bn: "আপনার বার্তা টাইপ করুন...",
+    };
+
+    return placeholders[language] || placeholders.en;
+  };
+
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "70vh", gap: 2 }}>
+    <Box sx={{ 
+      display: "flex", 
+      flexDirection: "column", 
+      height: { xs: "calc(100vh - 180px)", sm: "calc(100vh - 150px)", md: "70vh" }, 
+      gap: 2,
+      px: { xs: 1, sm: 2, md: 0 },
+      width: "100%",
+      maxWidth: "100%",
+    }}>
       <Paper
         elevation={3}
+        ref={chatContainerRef}
         sx={{
           flex: 1,
-          p: 2,
+          p: { xs: 1, sm: 2 },
           overflowY: "auto",
           bgcolor: "rgba(255, 255, 255, 0.1)",
           backdropFilter: "blur(10px)",
           border: "1px solid rgba(255, 255, 255, 0.2)",
           borderRadius: 2,
+          position: "relative",
         }}
+        onScroll={handleScroll}
       >
         <AnimatePresence>
           {messages.map((msg, index) => (
@@ -191,19 +277,25 @@ const ChatInterface = ({ language, suggestedPrompts, selectedPersona }: ChatInte
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5 }}
-              style={{ display: "flex", justifyContent: msg.sender === "user" ? "flex-end" : "flex-start", marginBottom: "10px" }}
+              style={{ 
+                display: "flex", 
+                justifyContent: msg.sender === "user" ? "flex-end" : "flex-start", 
+                marginBottom: "10px" 
+              }}
             >
               <Box
                 sx={{
-                  maxWidth: "70%",
-                  p: 2,
+                  maxWidth: { xs: "85%", sm: "75%", md: "70%" },
+                  p: { xs: 1.5, sm: 2 },
                   borderRadius: 2,
                   bgcolor: msg.sender === "user" ? "#00f5ff" : "#ff4081",
                   color: "#fff",
                   boxShadow: "0 4px 20px rgba(0, 0, 0, 0.2)",
+                  fontSize: { xs: "0.9rem", sm: "1rem" },
+                  wordBreak: "break-word",
                 }}
               >
-                <Typography>{msg.text}</Typography>
+                <Typography variant={isMobile ? "body2" : "body1"}>{msg.text}</Typography>
               </Box>
             </motion.div>
           ))}
@@ -211,65 +303,215 @@ const ChatInterface = ({ language, suggestedPrompts, selectedPersona }: ChatInte
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              style={{ textAlign: "center", color: "#fff" }}
+              style={{ textAlign: "center", padding: "10px" }}
             >
-              {language === "te" ? "పంపిణీ చేస్తోంది..." : "Sending..."}
+              <CircularProgress size={24} sx={{ color: mode === 'dark' ? '#00f5ff' : '#6200ea' }} />
+              <Typography variant="body2" sx={{ mt: 1, color: mode === 'dark' ? '#00f5ff' : '#6200ea' }}>
+                {buttonLabels[language]?.sending || "Sending..."}
+              </Typography>
+            </motion.div>
+          )}
+          <div ref={messagesEndRef} />
+        </AnimatePresence>
+        
+        {/* Scroll to bottom button */}
+        <AnimatePresence>
+          {hasNewMessages && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              style={{
+                position: "absolute",
+                bottom: "20px",
+                left: "50%",
+                transform: "translateX(-50%)",
+              }}
+            >
+              <Button
+                variant="contained"
+                size="small"
+                onClick={scrollToBottom}
+                startIcon={<KeyboardArrowDown />}
+                sx={{
+                  bgcolor: mode === 'dark' ? 'rgba(0, 245, 255, 0.8)' : 'rgba(98, 0, 234, 0.8)',
+                  borderRadius: 4,
+                  boxShadow: mode === 'dark' ? '0 0 15px rgba(0, 245, 255, 0.5)' : '0 0 15px rgba(98, 0, 234, 0.5)',
+                  '&:hover': {
+                    bgcolor: mode === 'dark' ? '#00f5ff' : '#6200ea',
+                  },
+                }}
+              >
+                New messages
+              </Button>
             </motion.div>
           )}
         </AnimatePresence>
       </Paper>
 
-      <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+      <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
         <TextField
           fullWidth
           variant="outlined"
-          placeholder={language === "te" ? "మీ సందేశాన్ని టైప్ చేయండి..." : "Type your message..."}
+          placeholder={getPlaceholderText()}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={(e) => e.key === "Enter" && handleSend()}
-          disabled={isSending}
-          sx={{ "& .MuiOutlinedInput-root": { bgcolor: "rgba(255, 255, 255, 0.1)", borderRadius: 2 } }}
+          disabled={isSending || isListening}
+          size={isMobile ? "small" : "medium"}
+          sx={{ 
+            "& .MuiOutlinedInput-root": { 
+              bgcolor: "rgba(255, 255, 255, 0.1)", 
+              borderRadius: 2,
+              fontSize: { xs: '0.9rem', sm: '1rem' },
+            }
+          }}
         />
-        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-          <IconButton onClick={handleVoice} disabled={isSending} sx={{ bgcolor: "rgba(255, 255, 255, 0.2)", color: "#fff" }}>
-            <Mic />
-          </IconButton>
-        </motion.div>
-        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-          <IconButton onClick={() => setShowSuggestions(!showSuggestions)} disabled={isSending} sx={{ bgcolor: "rgba(255, 255, 255, 0.2)", color: "#fff" }}>
-            <Lightbulb />
-          </IconButton>
-        </motion.div>
-        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-          <Button variant="contained" onClick={handleSend} disabled={isSending} sx={{ bgcolor: "#00f5ff", color: "#fff", borderRadius: 2 }}>
-            {language === "te" ? "పంపండి" : <Send />}
-          </Button>
-        </motion.div>
+        
+        <Box sx={{ 
+          display: "flex", 
+          gap: 1, 
+          alignItems: "center",
+          width: { xs: '100%', sm: 'auto' },
+          justifyContent: { xs: 'space-between', sm: 'flex-end' },
+          mt: { xs: 1, sm: 0 }
+        }}>
+          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+            <IconButton 
+              onClick={handleVoice} 
+              disabled={isSending} 
+              sx={{ 
+                bgcolor: isListening ? "rgba(255, 64, 129, 0.3)" : "rgba(255, 255, 255, 0.2)", 
+                color: "#fff",
+                width: { xs: 36, sm: 40 },
+                height: { xs: 36, sm: 40 }
+              }}
+            >
+              <Mic fontSize={isMobile ? "small" : "medium"} />
+            </IconButton>
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+            <IconButton 
+              onClick={() => setShowSuggestions(!showSuggestions)} 
+              disabled={isSending} 
+              sx={{ 
+                bgcolor: showSuggestions ? "rgba(255, 64, 129, 0.3)" : "rgba(255, 255, 255, 0.2)", 
+                color: "#fff",
+                width: { xs: 36, sm: 40 },
+                height: { xs: 36, sm: 40 }
+              }}
+            >
+              <Lightbulb fontSize={isMobile ? "small" : "medium"} />
+            </IconButton>
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+            <Button
+              variant="contained"
+              onClick={handleSend}
+              disabled={!input.trim() || isSending}
+              startIcon={<Send fontSize={isMobile ? "small" : "medium"} />}
+              size={isMobile ? "small" : "medium"}
+              sx={{
+                bgcolor: mode === 'dark' ? '#00f5ff' : '#6200ea',
+                color: '#fff',
+                '&:hover': {
+                  bgcolor: mode === 'dark' ? '#00d7df' : '#5000d3',
+                },
+                borderRadius: 2,
+                px: { xs: 2, sm: 3 },
+                py: { xs: 0.8, sm: 1 },
+              }}
+            >
+              {buttonLabels[language]?.send || "Send"}
+            </Button>
+          </motion.div>
+        </Box>
       </Box>
 
+      {/* Suggestions panel */}
       <AnimatePresence>
-        {showSuggestions && (
+        {showSuggestions && suggestedPrompts.length > 0 && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
+            animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <Paper sx={{ p: 2, mt: 1, bgcolor: "rgba(255, 255, 255, 0.1)" }}>
-              {suggestedPrompts.map((prompt, index) => (
-                <Button
-                  key={index}
-                  variant="outlined"
-                  onClick={() => {
-                    setInput(prompt);
-                    setShowSuggestions(false);
-                  }}
-                  disabled={isSending}
-                  sx={{ m: 1, color: "#fff", borderColor: "#00f5ff" }}
-                >
-                  {prompt}
-                </Button>
-              ))}
+            <Paper
+              elevation={3}
+              sx={{
+                p: 2,
+                mt: 1,
+                bgcolor: "rgba(255, 255, 255, 0.1)",
+                backdropFilter: "blur(10px)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                borderRadius: 2,
+                maxHeight: '150px',
+                overflowY: 'auto'
+              }}
+            >
+              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', color: mode === 'dark' ? '#00f5ff' : '#6200ea' }}>
+                {buttonLabels[language]?.suggestions || "Suggestions"}
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {suggestedPrompts.map((prompt, index) => (
+                  <Button
+                    key={index}
+                    variant="outlined"
+                    size="small"
+                    onClick={() => {
+                      setInput(prompt);
+                      setShowSuggestions(false);
+                    }}
+                    sx={{
+                      borderColor: mode === 'dark' ? 'rgba(0, 245, 255, 0.5)' : 'rgba(98, 0, 234, 0.5)',
+                      color: mode === 'dark' ? '#00f5ff' : '#6200ea',
+                      '&:hover': {
+                        borderColor: mode === 'dark' ? '#00f5ff' : '#6200ea',
+                        bgcolor: mode === 'dark' ? 'rgba(0, 245, 255, 0.1)' : 'rgba(98, 0, 234, 0.1)',
+                      },
+                      textTransform: 'none',
+                      borderRadius: 4,
+                      mb: 1,
+                      fontSize: { xs: '0.75rem', sm: '0.85rem' }
+                    }}
+                  >
+                    {prompt.length > (isTablet ? 30 : 50) ? prompt.substring(0, isTablet ? 30 : 50) + '...' : prompt}
+                  </Button>
+                ))}
+              </Box>
+            </Paper>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Voice input status */}
+      <AnimatePresence>
+        {isListening && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+          >
+            <Paper
+              elevation={3}
+              sx={{
+                p: 2,
+                mt: 1,
+                bgcolor: "rgba(255, 64, 129, 0.2)",
+                backdropFilter: "blur(10px)",
+                border: "1px solid rgba(255, 64, 129, 0.3)",
+                borderRadius: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2
+              }}
+            >
+              <CircularProgress size={24} sx={{ color: '#ff4081' }} />
+              <Typography variant="body1" sx={{ color: '#ff4081' }}>
+                {buttonLabels[language]?.listening || "Listening..."}
+              </Typography>
             </Paper>
           </motion.div>
         )}
