@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 
 // Define valid language codes and personas
 type LanguageCode = 'en' | 'hi' | 'ta' | 'te' | 'bn';
-type Persona = 'farmer' | 'developer' | 'student' | 'educated' | 'uneducated';
+type Persona = 'farmer' | 'developer' | 'student' | 'educated' | 'uneducated'| 'aiArt';
 
 // User persona icons and their labels
 const personas: { id: Persona; icon: string; label: string }[] = [
@@ -15,6 +15,7 @@ const personas: { id: Persona; icon: string; label: string }[] = [
   { id: "student", icon: "👨‍🎓", label: "Student" },
   { id: "educated", icon: "🧑‍🏫", label: "Educated" },
   { id: "uneducated", icon: "👷‍♂️", label: "Uneducated" },
+  { id: "aiArt", icon: "🎨", label: "AI Art" } ,
 ];
 
 interface HeaderProps {

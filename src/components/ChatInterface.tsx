@@ -7,7 +7,7 @@ import axios from "axios";
 
 // Define valid language codes and personas
 type LanguageCode = 'en' | 'hi' | 'ta' | 'te' | 'bn';
-type Persona = 'farmer' | 'developer' | 'student' | 'educated' | 'uneducated';
+type Persona = 'farmer' | 'developer' | 'student' | 'educated' | 'uneducated'| 'aiArt';
 
 interface Message {
   text: string;
@@ -31,6 +31,7 @@ const greetings: Record<LanguageCode, Record<Persona, string>> = {
     student: "Hello Student",
     educated: "Hello Educated Person",
     uneducated: "Hello Friend",
+    aiArt:"Good Day, Friend",
   },
   hi: {
     farmer: "नमस्ते किसान",
@@ -38,6 +39,7 @@ const greetings: Record<LanguageCode, Record<Persona, string>> = {
     student: "नमस्ते छात्र",
     educated: "नमस्ते शिक्षित व्यक्ति",
     uneducated: "नमस्ते मित्र",
+    aiArt: "नमस्ते मित्र",
   },
   ta: {
     farmer: "வணக்கம் விவசாயி",
@@ -45,6 +47,7 @@ const greetings: Record<LanguageCode, Record<Persona, string>> = {
     student: "வணakkம் மாணவர்",
     educated: "வணakkம் படித்தவர்",
     uneducated: "வணakkம் நண்பர்",
+    aiArt: "வணakkம் நண்பர்",
   },
   te: {
     farmer: "హలో రైతు",
@@ -52,6 +55,7 @@ const greetings: Record<LanguageCode, Record<Persona, string>> = {
     student: "హలో విద్యార్థి",
     educated: "హలో విద్యావంతుడు",
     uneducated: "హలో స్నేహితుడు",
+    aiArt: "హలో స్నేహితుడు",
   },
   bn: {
     farmer: "হ্যালো কৃষক",
@@ -59,6 +63,7 @@ const greetings: Record<LanguageCode, Record<Persona, string>> = {
     student: "হ্যালো ছাত্র",
     educated: "হ্যালো শিক্ষিত ব্যক্তি",
     uneducated: "হ্যালো বন্ধু",
+    aiArt: "হ্যালো বন্ধু",
   },
 };
 
