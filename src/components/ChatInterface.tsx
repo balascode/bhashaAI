@@ -197,6 +197,7 @@ const ChatInterface = ({ language, suggestedPrompts, selectedPersona }: ChatInte
       const res = await axios.post("https://backend-basha-ai.onrender.com/process_prompt", {
         prompt: input,
         lang: language,
+        persona: selectedPersona,
       });
 
       console.log("Raw response from API:", res.data);
