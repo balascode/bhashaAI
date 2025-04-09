@@ -14,6 +14,15 @@ interface Message {
   sender: "user" | "ai";
 }
 
+// map your LanguageCode to SpeechRecognition locales
+const speechLocaleMap: Record<LanguageCode, string> = {
+  en: "en-US",
+  hi: "hi-IN",
+  ta: "ta-IN",
+  te: "te-IN",
+  bn: "bn-IN",
+};
+
 // Translations for greetings
 const greetings: Record<LanguageCode, Record<Persona, string>> = {
   en: {
@@ -117,7 +126,8 @@ const ChatInterface = ({ language, suggestedPrompts, selectedPersona }: ChatInte
   const { mode } = useContext(ThemeContext);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  
+  const recognitionRef = useRef<any>(null);
+    
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
@@ -174,14 +184,57 @@ const ChatInterface = ({ language, suggestedPrompts, selectedPersona }: ChatInte
     }
   }, []);
 
+  useEffect(() => {
+        // set up Web Speech API
+        const SpeechRecognition = (window as any).SpeechRecognition
+                              || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) return;
+        const recog = new SpeechRecognition();
+        recog.lang = speechLocaleMap[language] || "en-US";
+        recog.interimResults = false;    // only final transcripts
+        recog.maxAlternatives = 1;
+        recog.continuous = false;            // stop after one utterance
+        recog.interimResults = false;        // only final results
+
+        // —— DEBUG LOGGING —— //
+        recog.onstart      = () => console.log("[STT] recognition started");
+        recog.onspeechend  = () => console.log("[STT] speech ended");
+        recog.onend        = () => {
+          console.log("[STT] recognition ended");
+          setIsListening(false);
+        };
+        recog.onresult     = (e: any) => {
+          console.log("[STT] result event:", e);
+          const transcript = e.results[0][0].transcript;
+          console.log("[STT] transcript:", transcript);
+          setInput(transcript);
+          handleSend();
+        };
+        recog.onerror      = (err: any) => console.error("[STT] error:", err.error);
+        recog.onnomatch    = () => console.warn("[STT] no speech match");
+// —— end DEBUG —— //
+       recog.onresult = (e: any) => {
+                   const transcript = e.results[0][0].transcript;
+                   setInput(transcript);
+                   handleSend();
+               };
+
+        recog.onend = () => setIsListening(false);
+    
+        recognitionRef.current = recog;
+    }, [language]);
   const handleVoice = () => {
-    setIsListening(!isListening);
-    console.log("Voice input triggered");
-    // Add voice recognition code here
-    setTimeout(() => {
-      setIsListening(false);
-    }, 3000);
-  };
+         if (!recognitionRef.current) return;
+      
+         if (isListening) {
+           // stop if already listening
+           recognitionRef.current.stop();
+         } else {
+           // start listening
+           recognitionRef.current.start();
+           setIsListening(true);
+         }
+       };
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -193,7 +246,7 @@ const ChatInterface = ({ language, suggestedPrompts, selectedPersona }: ChatInte
     setInput("");
 
     try {
-      console.log("Sending request:", { prompt: input, lang: language });
+      console.log("Sending request:", { prompt: input, lang: language, persona: selectedPersona });
       const res = await axios.post("https://backend-basha-ai.onrender.com/process_prompt", {
         prompt: input,
         lang: language,
