@@ -32,8 +32,8 @@ const greetings: Record<LanguageCode, Record<Persona, string>> = {
   },
   ta: {
     farmer: "வணக்கம் விவசாயி",
-    developer: "வணக்கம் மென்பொருள் உருவாக்குநர்",
-    student: "வணக்கம் மாணவர்",
+    developer: "வணakkம் மென்பொருள் உருவாக்குநர்",
+    student: "வணakkம் மாணவர்",
     educated: "வணakkம் படித்தவர்",
     uneducated: "வணakkம் நண்பர்",
   },
@@ -187,6 +187,7 @@ const ChatInterface = ({ language, suggestedPrompts, selectedPersona }: ChatInte
     if (!input.trim()) return;
 
     setIsSending(true);
+    console.log("Set isSending to true");
     const userMessage: Message = { text: input, sender: "user" };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
@@ -196,16 +197,11 @@ const ChatInterface = ({ language, suggestedPrompts, selectedPersona }: ChatInte
       const res = await axios.post("https://backend-basha-ai.onrender.com/process_prompt", {
         prompt: input,
         lang: language,
-      }, {
-        timeout: 10000, // Set timeout to 10 seconds
       });
 
       console.log("Raw response from API:", res.data);
       if (res.data.response) {
-        const aiMessage: Message = {
-          text: res.data.response,
-          sender: "ai",
-        };
+        const aiMessage: Message = { text: res.data.response, sender: "ai" };
         setMessages((prev) => [...prev, aiMessage]);
       } else {
         console.warn("No 'response' field in API response, showing dummy response");
@@ -216,6 +212,7 @@ const ChatInterface = ({ language, suggestedPrompts, selectedPersona }: ChatInte
       showDummyResponses();
     } finally {
       setIsSending(false);
+      console.log("Set isSending to false");
     }
   };
 
@@ -243,6 +240,9 @@ const ChatInterface = ({ language, suggestedPrompts, selectedPersona }: ChatInte
 
     return placeholders[language] || placeholders.en;
   };
+
+  // Debug render log
+  console.log("Rendering ChatInterface, isSending:", isSending);
 
   return (
     <Box sx={{ 
@@ -301,8 +301,11 @@ const ChatInterface = ({ language, suggestedPrompts, selectedPersona }: ChatInte
           ))}
           {isSending && (
             <motion.div
+              key="sending-indicator" // Unique key to force remount
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }} // Ensure it exits
+              transition={{ duration: 0.2 }} // Quick exit transition
               style={{ textAlign: "center", padding: "10px" }}
             >
               <CircularProgress size={24} sx={{ color: mode === 'dark' ? '#00f5ff' : '#6200ea' }} />
